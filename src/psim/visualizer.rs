@@ -1,6 +1,7 @@
 use sdl2::gfx::primitives::DrawRenderer;
 use sdl2::pixels::Color;
 use sdl2::render::WindowCanvas;
+use sdl2::Sdl;
 use crate::psim::simulator::forcefield::{ForceField, Shape};
 use crate::psim::simulator::particle::Particle;
 use crate::psim::simulator::psim::PSim;
@@ -13,7 +14,7 @@ const DEFAULT_PARTICLE_VELOCITY: Vector2 = Vector2 { x: 0.0, y: 0.0 };
 const DEFAULT_BIG_PARTICLE_RADIUS: f64 = 100.0;
 const DEFAULT_BIG_PARTICLE_MASS: f64 = 5.972 * 1e24;
 const DEFAULT_GRAVITY_RADIUS: f64 = 40.0;
-const DEFAULT_GRAVITY_MASS: f64 = 8.0 * 1e16;
+const DEFAULT_GRAVITY_MASS: f64 = 8.0 * 1e23;
 
 const COLOR_BACKGROUND: Color = Color::RGB(20, 20, 20);
 const COLOR_PARTICLE: Color = Color::RGB(127, 180, 99);
@@ -26,7 +27,7 @@ fn random_draw_color() -> Color {
     Color::RGB(r, g, b)
 }
 
-enum Event {
+pub enum VisEvent {
     Quit,
     Reset,
     AddParticle { particle: Particle },
@@ -42,14 +43,20 @@ pub struct Visualizer {
 }
 
 impl Visualizer {
-    pub(crate) fn new(width: u32, height: u32) -> Self {
+
+    pub fn new(width: u32, height: u32) -> Self {
         let sdl_context = sdl2::init().unwrap();
+        Visualizer::new_with_sdl(sdl_context, width, height)
+
+    }
+    pub fn new_with_sdl(sdl_context: Sdl,width: u32, height: u32) -> Self {
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem.window("Particle Simulator", width, height)
             .build()
             .unwrap();
         let canvas = window.into_canvas().build().unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
+
         Visualizer {
             simulator: PSim::new(),
             canvas,
@@ -58,8 +65,8 @@ impl Visualizer {
         }
     }
 
-    fn get_events(&mut self) -> Vec<Event> {
-        let mut events: Vec<Event> = vec![];
+    fn get_events(&mut self) -> Vec<VisEvent> {
+        let mut events: Vec<VisEvent> = vec![];
         let mouse_state = self.event_pump.mouse_state();
         let x = mouse_state.x();
         let y = mouse_state.y();
@@ -67,33 +74,33 @@ impl Visualizer {
             match event {
                 sdl2::event::Event::Quit { .. } => {
                     events.push(
-                        Event::Quit
+                        VisEvent::Quit
                     )
                 }
                 //Add Particle
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::P), .. } => {
-                    events.push(Event::AddParticle {
+                    events.push(VisEvent::AddParticle {
                         particle: Particle::new(
                             Vector2::new(x as f64, y as f64),
                             DEFAULT_PARTICLE_VELOCITY,
                             DEFAULT_PARTICLE_MASS,
-                            DEFAULT_PARTICLE_RADIUS
+                            DEFAULT_PARTICLE_RADIUS,
                         )
                     });
                 }
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::O), .. } => {
-                    events.push(Event::AddParticle {
+                    events.push(VisEvent::AddParticle {
                         particle: Particle::new(
                             Vector2::new(x as f64, y as f64),
                             Vector2::zero(),
                             DEFAULT_BIG_PARTICLE_MASS,
-                            DEFAULT_BIG_PARTICLE_RADIUS
+                            DEFAULT_BIG_PARTICLE_RADIUS,
                         )
                     });
                 }
                 //Add gravity field
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::G), .. } => {
-                    events.push(Event::AddParticle {
+                    events.push(VisEvent::AddParticle {
                         particle: Particle::new(
                             Vector2::new(x as f64, y as f64),
                             Vector2::zero(),
@@ -101,15 +108,14 @@ impl Visualizer {
                             DEFAULT_GRAVITY_RADIUS,
                         )
                     });
-
                 }
                 //Reset
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::R), .. } => {
-                    events.push(Event::Reset)
+                    events.push(VisEvent::Reset)
                 }
                 //Delete
                 sdl2::event::Event::KeyDown { keycode: Some(sdl2::keyboard::Keycode::D), .. } => {
-                    events.push(Event::Delete {
+                    events.push(VisEvent::Delete {
                         position: Vector2::new(x as f64, y as f64),
                     })
                 }
@@ -123,13 +129,13 @@ impl Visualizer {
         let events = self.get_events();
         for event in events {
             match event {
-                Event::AddParticle { particle } => {
+                VisEvent::AddParticle { particle } => {
                     self.add_particle(particle);
                 }
-                Event::AddForceField { force_field } => {
+                VisEvent::AddForceField { force_field } => {
                     self.add_force_field(force_field);
                 }
-                Event::Delete { position } => {
+                VisEvent::Delete { position } => {
                     self.simulator.particles.retain(|particle| {
                         particle.get_pos().distance(&position) > particle.get_radius()
                     });
@@ -146,10 +152,10 @@ impl Visualizer {
                         }
                     })
                 }
-                Event::Quit => {
+                VisEvent::Quit => {
                     self.running = false;
                 }
-                Event::Reset => {
+                VisEvent::Reset => {
                     self.simulator = PSim::new();
                 }
             }
@@ -212,9 +218,10 @@ impl Visualizer {
         self.draw();
         self.simulator.step(dt);
     }
-    
+
     pub fn run(&mut self) {
         self.running = true;
+
         let mut time = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64();
         let mut dt: f64 = 0.0;
         while self.running {
