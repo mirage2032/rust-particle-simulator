@@ -1,31 +1,24 @@
 use ggez::{Context, GameResult, graphics};
 use ggez::event::EventHandler;
 use ggez::glam::{vec2, Vec2};
-use ggez::graphics::{Canvas, Color, Rect};
+use ggez::graphics::{Canvas, Color, Rect, Text, TextFragment, PxScale, Drawable};
 use ggez::input::keyboard::{KeyCode, KeyInput};
 use crate::psim::simulator::forcefield::{ForceField, Shape};
 use crate::psim::simulator::particle::Particle;
 use crate::psim::simulator::psim::PSim;
 
-const DEFAULT_PARTICLE_RADIUS: f64 = 2.0;
+const DEFAULT_PARTICLE_RADIUS: f64 = 10.0;
 const DEFAULT_PARTICLE_MASS: f64 = 1500.0;
-const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 0.0, y: 0.0 };
+const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 260.0, y: 0.0 };
 
 const DEFAULT_BIG_PARTICLE_RADIUS: f64 = 100.0;
-const DEFAULT_BIG_PARTICLE_MASS: f64 = 5.972 * 1e24;
+const DEFAULT_BIG_PARTICLE_MASS: f64 = 20.0 * 1e14;
 const DEFAULT_GRAVITY_RADIUS: f64 = 40.0;
-const DEFAULT_GRAVITY_MASS: f64 = 8.0 * 1e23;
+const DEFAULT_GRAVITY_MASS: f64 = 8.0 * 1e13;
 
-const COLOR_BACKGROUND: Color = Color { r: 0.5, g: 0.5, b: 0.5, a: 1.0 };
+const COLOR_BACKGROUND: Color = Color { r: 0.2, g: 0.2, b: 0.2, a: 1.0 };
 const COLOR_PARTICLE: Color = Color { r: 0.9, g: 0.9, b: 0.6, a: 1.0 };
 const COLOR_FORCE_FIELD: Color = Color { r: 0.2, g: 0.5, b: 0.9, a: 1.0 };
-
-fn random_draw_color() -> Color {
-    let r = rand::random::<u8>();
-    let g = rand::random::<u8>();
-    let b = rand::random::<u8>();
-    Color::from_rgb(r, g, b)
-}
 
 pub enum VisEvent {
     Quit,
@@ -43,8 +36,6 @@ pub struct Visualizer {
     dt: f64,
 }
 
-struct MainState;
-
 impl Visualizer {
     pub fn new(width: u32, height: u32, dt: f64) -> GameResult<Self> {
         //create drawable or canvas
@@ -53,7 +44,7 @@ impl Visualizer {
             mouse_position: Vec2::new(0.0, 0.0),
             size: Vec2::new(width as f32, height as f32),
             running: true,
-            dt,
+            dt
         })
     }
 
@@ -119,7 +110,7 @@ impl Visualizer {
                         0.0,
                         COLOR_FORCE_FIELD,
                     ).unwrap();
-                    canvas.draw(&circle_mesh, Vec2::new(pos.x as f32, pos.y as f32));
+                    canvas.draw(&circle_mesh, Vec2::new(pos.x, pos.y));
                 }
                 Shape::Rectangle { width, height } => {
                     let rectangle = Rect::new(
@@ -134,7 +125,7 @@ impl Visualizer {
                         rectangle,
                         COLOR_FORCE_FIELD,
                     ).unwrap();
-                    canvas.draw(&rectangle_mesh, Vec2::new(pos.x as f32, pos.y as f32));
+                    canvas.draw(&rectangle_mesh, Vec2::new(pos.x, pos.y));
                 }
             }
         });
@@ -156,11 +147,34 @@ impl Visualizer {
     }
 
     fn draw_gui(&mut self, ctx: &mut Context, canvas: &mut Canvas) -> GameResult {
+        let rectangle = Rect::new(
+            0.0,
+            0.0,
+            self.size.x,
+            -170.0,
+        );
+        let rectangle_mesh = graphics::Mesh::new_rectangle(
+            ctx,
+            graphics::DrawMode::fill(),
+            rectangle,
+            Color::from_rgb(180, 200, 35),
+        ).unwrap();
+        canvas.draw(&rectangle_mesh, Vec2::new(0.0, self.size.y));
+
+        // Create a Font object using the system font
+        let frametime = ctx.time.delta().as_secs_f64();
+        let text = Text::new(TextFragment {
+            text: format!("Frametime: {}\nFPS: {:.2}", frametime, 1.0 / frametime),
+            color: Some(Color::BLACK),
+            font: Some("LiberationMono-Regular".into()),
+            scale: Some(PxScale::from(20.0)),
+        });
+        canvas.draw(&text, Vec2::new(0.0, self.size.y - text.dimensions(ctx).unwrap().size().y));
         Ok(())
     }
 }
 
-impl EventHandler<> for Visualizer {
+impl EventHandler for Visualizer {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> GameResult {
         match input.keycode.unwrap() {
             KeyCode::Escape => {
