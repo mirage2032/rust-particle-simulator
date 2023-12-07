@@ -9,7 +9,7 @@ use crate::psim::simulator::psim::PSim;
 
 const DEFAULT_PARTICLE_RADIUS: f64 = 10.0;
 const DEFAULT_PARTICLE_MASS: f64 = 1500.0;
-const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 260.0, y: 0.0 };
+const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 280.0, y: 0.0 };
 
 const DEFAULT_BIG_PARTICLE_RADIUS: f64 = 100.0;
 const DEFAULT_BIG_PARTICLE_MASS: f64 = 20.0 * 1e14;
@@ -34,17 +34,19 @@ pub struct Visualizer {
     simulator: PSim,
     running: bool,
     dt: f64,
+    realtime:bool
 }
 
 impl Visualizer {
-    pub fn new(width: u32, height: u32, dt: f64) -> GameResult<Self> {
+    pub fn new(width: u32, height: u32, dt: f64,realtime:bool) -> GameResult<Self> {
         //create drawable or canvas
         Ok(Visualizer {
             simulator: PSim::new(),
             mouse_position: Vec2::new(0.0, 0.0),
             size: Vec2::new(width as f32, height as f32),
             running: true,
-            dt
+            dt,
+            realtime
         })
     }
 
