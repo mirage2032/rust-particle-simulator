@@ -1,25 +1,31 @@
+use std::collections::HashMap;
+
+use multi_mut::HashMapMultiMut;
+use rand::random;
+
 use crate::psim::simulator::forcefield::ForceField;
 use crate::psim::simulator::particle::Particle;
 
 pub struct PSim {
-    pub particles: Vec<Particle>,
-    pub force_fields: Vec<ForceField>,
+    pub particles: HashMap<u64,Particle>,
+    pub force_fields: Vec<ForceField>
 }
 
 impl PSim {
     pub fn new() -> Self {
-        PSim { particles: vec![], force_fields: vec![] }
+        PSim { particles: HashMap::new() , force_fields: vec![]}
     }
 
     pub fn add_particle(&mut self, particle: Particle) {
-        self.particles.push(particle);
+        let id = random::<u64>();
+        self.particles.insert(id,particle);
     }
 
     pub fn add_force_field(&mut self, force_field: ForceField) {
         self.force_fields.push(force_field);
     }
 
-    pub fn get_particles(&self) -> &Vec<Particle> {
+    pub fn get_particles(&self) -> &HashMap<u64,Particle> {
         &self.particles
     }
 
@@ -28,7 +34,7 @@ impl PSim {
     }
 
     fn add_forces(&mut self) {
-        for particle in &mut self.particles {
+        for (id,particle) in &mut self.particles {
             for force_field in &self.force_fields {
                 if force_field.affects_particle(particle) {
                     let force = force_field.calculate_force(particle);
@@ -36,15 +42,15 @@ impl PSim {
                 }
             }
         }
-        let particle_count = self.particles.len();
+        let ids: Vec<u64> = self.particles.keys().cloned().collect();
+        let particle_count = ids.len();
 
         for i in 0..particle_count {
             for j in i + 1..particle_count {
-                // Borrow two mutable references from the vector at indices i and j
-                let (particles_left, particles_right) = self.particles.split_at_mut(j);
-                let particle_i = &mut particles_left[i];
-                let mut particle_j = &mut particles_right[0];
-                particle_i.interact(&mut particle_j);
+                let id_i = ids[i];
+                let id_j = ids[j];
+                let (particle_i,particle_j) = self.particles.get_pair_mut(&id_i, &id_j).unwrap();
+                particle_i.interact(particle_j);
             }
         }
     }
@@ -54,8 +60,8 @@ impl PSim {
         //     println!("Velocity:{} {}", self.particles[1].get_velocity().x, self.particles[0].get_velocity().y);
         // }
         self.add_forces();
-        for particle in &mut self.particles {
+        for (_, particle) in &mut self.particles {
             particle.step(dt);
         }
     }
-}
+    }

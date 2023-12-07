@@ -9,16 +9,16 @@ pub struct Particle {
     mass: f64,
     radius: f64,
     //TODO: Make particles able to have different shapes
-    is_static: bool,
+    is_static: bool
 }
 
 impl Particle {
     pub fn new(position: Vec2, velocity: Vec2, mass: f64, radius: f64) -> Self {
-        Particle { position, velocity, total_forces: Vec2::new(0.0, 0.0), mass, radius, is_static: false }
+        Particle { position, velocity, total_forces: Vec2::new(0.0, 0.0), mass, radius, is_static: false}
     }
 
     pub fn new_static(position: Vec2, velocity: Vec2, mass: f64, radius: f64) -> Self {
-        Particle { position, velocity, total_forces: Vec2::new(0.0, 0.0), mass, radius, is_static: true }
+        Particle { position, velocity, total_forces: Vec2::new(0.0, 0.0), mass, radius, is_static: true}
     }
 
     fn collides_with(&self, other: &Particle) -> bool {
