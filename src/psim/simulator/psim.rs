@@ -32,7 +32,7 @@ impl PSim {
             for force_field in &self.force_fields {
                 if force_field.affects_particle(particle) {
                     let force = force_field.calculate_force(particle);
-                    particle.add_force(&force);
+                    particle.add_force(force);
                 }
             }
         }
