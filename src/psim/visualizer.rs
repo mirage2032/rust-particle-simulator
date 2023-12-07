@@ -22,14 +22,6 @@ const COLOR_BACKGROUND: Color = Color { r: 0.2, g: 0.2, b: 0.2, a: 1.0 };
 const COLOR_PARTICLE: Color = Color { r: 0.9, g: 0.9, b: 0.6, a: 1.0 };
 const COLOR_FORCE_FIELD: Color = Color { r: 0.2, g: 0.5, b: 0.9, a: 1.0 };
 
-pub enum VisEvent {
-    Quit,
-    Reset,
-    AddParticle { particle: Particle },
-    AddForceField { force_field: ForceField },
-    Delete { position: Vec2 },
-}
-
 pub struct Visualizer{
     mouse_position: Vec2,
     simulator: PSim,
@@ -44,37 +36,6 @@ impl Visualizer {
             mouse_position: Vec2::new(0.0, 0.0),
             settings: Settings::new(Vec2::new(width as f32, height as f32), 1.0, dt, realtime),
         })
-    }
-
-    fn handle_event(&mut self, event: VisEvent) {
-        match event {
-            VisEvent::AddParticle { particle } => {
-                self.add_particle(particle);
-            }
-            VisEvent::AddForceField { force_field } => {
-                self.add_force_field(force_field);
-            }
-            VisEvent::Delete { position } => {
-                self.simulator.force_fields.retain(|force_field| {
-                    let force_field_pos: &Vec2 = force_field.get_pos();
-                    match force_field.get_shape() {
-                        Shape::Circle { radius } => {
-                            force_field_pos.distance(position) as f64 > *radius
-                        }
-                        Shape::Rectangle { width, height } => {
-                            !((force_field_pos.x >= position.x - (width / 2.0) as f32 && force_field_pos.x <= position.x + (width / 2.0) as f32) &&
-                                (force_field_pos.y >= position.y - (height / 2.0) as f32 && force_field_pos.y <= position.y + (height / 2.0) as f32))
-                        }
-                    }
-                })
-            }
-            VisEvent::Quit => {
-                self.settings.set_running(false);
-            }
-            VisEvent::Reset => {
-                self.simulator = PSim::new();
-            }
-        }
     }
     pub fn add_particle(&mut self, particle: Particle) {
         self.simulator.add_particle(particle);
@@ -182,45 +143,52 @@ impl EventHandler for Visualizer {
     fn key_down_event(&mut self, ctx: &mut Context, input: KeyInput, _repeated: bool) -> GameResult {
         match input.keycode.unwrap() {
             KeyCode::Escape => {
+                self.settings.set_running(false);
                 ctx.request_quit();
             }
             KeyCode::P => {
-                self.handle_event(VisEvent::AddParticle {
-                    particle: Particle::new(
+                self.add_particle( Particle::new(
                         Vec2::new(self.mouse_position.x, self.mouse_position.y),
                         DEFAULT_PARTICLE_VELOCITY,
                         DEFAULT_PARTICLE_MASS,
                         DEFAULT_PARTICLE_RADIUS,
                     ),
-                });
+                );
             }
             KeyCode::O => {
-                self.handle_event(VisEvent::AddParticle {
-                    particle: Particle::new(
+                self.add_particle( Particle::new(
                         Vec2::new(self.mouse_position.x, self.mouse_position.y),
                         Vec2::new(0.0, 0.0),
                         DEFAULT_BIG_PARTICLE_MASS,
                         DEFAULT_BIG_PARTICLE_RADIUS,
                     ),
-                });
+                );
             }
             KeyCode::G => {
-                self.handle_event(VisEvent::AddParticle {
-                    particle: Particle::new(
+                self.add_particle( Particle::new(
                         Vec2::new(self.mouse_position.x, self.mouse_position.y),
                         Vec2::new(0.0, 0.0),
                         DEFAULT_GRAVITY_MASS,
                         DEFAULT_GRAVITY_RADIUS,
                     ),
-                });
+                );
             }
             KeyCode::R => {
-                self.handle_event(VisEvent::Reset);
+                self.simulator = PSim::new();
             }
             KeyCode::D => {
-                self.handle_event(VisEvent::Delete {
-                    position: Vec2::new(self.mouse_position.x, self.mouse_position.y),
-                });
+                self.simulator.force_fields.retain(|force_field| {
+                    let force_field_pos: &Vec2 = force_field.get_pos();
+                    match force_field.get_shape() {
+                        Shape::Circle { radius } => {
+                            force_field_pos.distance(self.mouse_position) as f64 > *radius
+                        }
+                        Shape::Rectangle { width, height } => {
+                            !((force_field_pos.x >= self.mouse_position.x - (width / 2.0) as f32 && force_field_pos.x <= self.mouse_position.x + (width / 2.0) as f32) &&
+                                (force_field_pos.y >= self.mouse_position.y - (height / 2.0) as f32 && force_field_pos.y <= self.mouse_position.y + (height / 2.0) as f32))
+                        }
+                    }
+                })
             }
             _ => {}
         }
