@@ -33,7 +33,7 @@ impl PSim {
         &self.force_fields
     }
 
-    fn add_forces(&mut self) {
+    pub fn add_forces(&mut self) {
         for (id,particle) in &mut self.particles {
             for force_field in &self.force_fields {
                 if force_field.affects_particle(particle) {
@@ -56,10 +56,6 @@ impl PSim {
     }
 
     pub fn step(&mut self, dt: f64) {
-        // if self.particles.len()>=2 {
-        //     println!("Velocity:{} {}", self.particles[1].get_velocity().x, self.particles[0].get_velocity().y);
-        // }
-        self.add_forces();
         for (_, particle) in &mut self.particles {
             particle.step(dt);
         }

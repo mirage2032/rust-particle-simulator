@@ -2,13 +2,13 @@ use std::f32::consts::PI;
 use ggez::glam::Vec2;
 use physical_constants::NEWTONIAN_CONSTANT_OF_GRAVITATION;
 
+#[derive(Clone, Copy)]
 pub struct Particle {
     position: Vec2,
     velocity: Vec2,
     total_forces: Vec2,
     mass: f64,
     radius: f64,
-    //TODO: Make particles able to have different shapes
     is_static: bool
 }
 
@@ -47,6 +47,7 @@ impl Particle {
     }
 
     fn resolve_collision(&mut self, other: &mut Particle) {
+        const ELASTICITY_COEFFICIENT: f32 = 0.6;
         // Move particles to avoid overlap
         let overlap = (self.radius + other.radius) - self.position.distance(other.position) as f64;
 
@@ -74,7 +75,7 @@ impl Particle {
         let normal = relative_position.normalize_or_zero();
 
         // Calculate impulse along the normal direction
-        let impulse = -(1.0 + 1.0) * relative_velocity.dot(normal) / ((1.0 / self.mass) + (1.0 / other.mass)) as f32;
+        let impulse = -(1.0 + ELASTICITY_COEFFICIENT) * relative_velocity.dot(normal) / ((1.0 / self.mass) + (1.0 / other.mass)) as f32;
 
         // Apply impulse to update velocities
         self.velocity += impulse * normal / self.mass as f32;
@@ -98,6 +99,18 @@ impl Particle {
 
     pub fn get_radius(&self) -> f64 {
         self.radius
+    }
+
+    pub fn get_velocity(&self) -> &Vec2 {
+        &self.velocity
+    }
+
+    pub fn get_acceleration(&self) -> Vec2 {
+        self.total_forces / self.mass as f32
+    }
+
+    pub fn get_total_forces(&self) -> &Vec2 {
+        &self.total_forces
     }
 
     pub fn apply_force(&mut self, external_force: Vec2) {

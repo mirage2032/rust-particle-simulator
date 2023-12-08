@@ -1,31 +1,28 @@
-use ggez::{Context, GameError, GameResult, graphics};
+use ggez::{Context, GameResult, graphics};
 use ggez::event::{EventHandler, MouseButton};
 use ggez::glam::{vec2, Vec2};
 use ggez::graphics::{Canvas, Color, Rect, Text, TextFragment, PxScale, Drawable};
 use ggez::input::keyboard::{KeyCode, KeyInput};
-use crate::psim::settings::Settings;
+use crate::psim::gui::Gui;
 use crate::psim::simulator::forcefield::{ForceField, Shape};
 use crate::psim::simulator::particle::Particle;
 use crate::psim::simulator::psim::PSim;
-use std::collections::HashMap;
 
-const DEFAULT_PARTICLE_RADIUS: f64 = 10.0;
-const DEFAULT_PARTICLE_MASS: f64 = 1500.0;
-const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 280.0, y: 0.0 };
-
+const DEFAULT_PARTICLE_RADIUS: f64 = 2.0;
+const DEFAULT_PARTICLE_MASS: f64 = 15000.0;
+const DEFAULT_PARTICLE_VELOCITY: Vec2 = Vec2 { x: 0.0, y: 0.0 };
 const DEFAULT_BIG_PARTICLE_RADIUS: f64 = 100.0;
 const DEFAULT_BIG_PARTICLE_MASS: f64 = 20.0 * 1e14;
 const DEFAULT_GRAVITY_RADIUS: f64 = 40.0;
 const DEFAULT_GRAVITY_MASS: f64 = 8.0 * 1e13;
-
 const COLOR_BACKGROUND: Color = Color { r: 0.2, g: 0.2, b: 0.2, a: 1.0 };
 const COLOR_PARTICLE: Color = Color { r: 0.9, g: 0.9, b: 0.6, a: 1.0 };
 const COLOR_FORCE_FIELD: Color = Color { r: 0.2, g: 0.5, b: 0.9, a: 1.0 };
 
-pub struct Visualizer{
+pub struct Visualizer {
     mouse_position: Vec2,
     simulator: PSim,
-    settings: Settings,
+    settings: Gui,
 }
 
 impl Visualizer {
@@ -34,7 +31,7 @@ impl Visualizer {
         Ok(Visualizer {
             simulator: PSim::new(),
             mouse_position: Vec2::new(0.0, 0.0),
-            settings: Settings::new(Vec2::new(width as f32, height as f32), 1.0, dt, realtime),
+            settings: Gui::new(Vec2::new(width as f32, height as f32), 1.0, dt, realtime),
         })
     }
     pub fn add_particle(&mut self, particle: Particle) {
@@ -48,7 +45,7 @@ impl Visualizer {
     fn clean(&mut self) {
         //remove particles out of bounds
         let size = self.settings.get_size();
-        self.simulator.particles.retain(|_,particle| {
+        self.simulator.particles.retain(|_, particle| {
             let pos = particle.get_pos();
             let size = self.settings.get_size();
             pos.x >= 0.0 && pos.x <= size.x && pos.y >= 0.0 && pos.y <= size.y
@@ -89,14 +86,14 @@ impl Visualizer {
         });
 
         //draw particle
-        self.simulator.get_particles().iter().for_each(|(id,particle)| {
+        self.simulator.get_particles().iter().for_each(|(id, particle)| {
             let pos = particle.get_pos();
             let color = if id == &self.settings.get_active_particle_id() {
                 Color::BLACK
             } else {
                 COLOR_PARTICLE
             };
-                
+
             let circle_mesh = graphics::Mesh::new_circle(
                 ctx,
                 graphics::DrawMode::fill(),
@@ -128,13 +125,27 @@ impl Visualizer {
 
         // Create a Font object using the system font
         let frametime = ctx.time.delta().as_secs_f64();
-        let text = Text::new(TextFragment {
-            text: format!("Frametime: {}\nFPS: {:.2}", frametime, 1.0 / frametime),
+        let text_performance = Text::new(TextFragment {
+            text: format!("Frametime: {}\nFPS: {:.2}\nParticles: {}", frametime, 1.0 / frametime,self.simulator.particles.len()),
             color: Some(Color::BLACK),
             font: Some("LiberationMono-Regular".into()),
             scale: Some(PxScale::from(20.0)),
         });
-        canvas.draw(&text, Vec2::new(0.0, size.y - text.dimensions(ctx).unwrap().size().y));
+        canvas.draw(&text_performance, Vec2::new(0.0, size.y - text_performance.dimensions(ctx).unwrap().size().y));
+        
+        let active_particle_id = self.settings.get_active_particle_id();
+        if self.simulator.particles.contains_key(&active_particle_id) {
+            let active_particle_data = self.settings.get_active_particle_data().unwrap();
+            let text_particle = Text::new(TextFragment {
+                text: active_particle_data.to_string(),
+                color: Some(Color::BLACK),
+                font: Some("LiberationMono-Regular".into()),
+                scale: Some(PxScale::from(20.0)),
+            });
+            let text_particle_size =text_particle.dimensions(ctx).unwrap().size();
+            canvas.draw(&text_particle, Vec2::new(size.x/2.0, size.y - text_particle_size.y));
+        }
+        
         Ok(())
     }
 }
@@ -147,36 +158,47 @@ impl EventHandler for Visualizer {
                 ctx.request_quit();
             }
             KeyCode::P => {
-                self.add_particle( Particle::new(
-                        Vec2::new(self.mouse_position.x, self.mouse_position.y),
-                        DEFAULT_PARTICLE_VELOCITY,
-                        DEFAULT_PARTICLE_MASS,
-                        DEFAULT_PARTICLE_RADIUS,
-                    ),
+                self.add_particle(Particle::new(
+                    Vec2::new(self.mouse_position.x, self.mouse_position.y),
+                    DEFAULT_PARTICLE_VELOCITY,
+                    DEFAULT_PARTICLE_MASS,
+                    DEFAULT_PARTICLE_RADIUS,
+                ),
                 );
             }
             KeyCode::O => {
-                self.add_particle( Particle::new(
-                        Vec2::new(self.mouse_position.x, self.mouse_position.y),
-                        Vec2::new(0.0, 0.0),
-                        DEFAULT_BIG_PARTICLE_MASS,
-                        DEFAULT_BIG_PARTICLE_RADIUS,
-                    ),
+                self.add_particle(Particle::new(
+                    Vec2::new(self.mouse_position.x, self.mouse_position.y),
+                    Vec2::new(0.0, 0.0),
+                    DEFAULT_BIG_PARTICLE_MASS,
+                    DEFAULT_BIG_PARTICLE_RADIUS,
+                ),
                 );
             }
             KeyCode::G => {
-                self.add_particle( Particle::new(
-                        Vec2::new(self.mouse_position.x, self.mouse_position.y),
-                        Vec2::new(0.0, 0.0),
-                        DEFAULT_GRAVITY_MASS,
-                        DEFAULT_GRAVITY_RADIUS,
-                    ),
+                self.add_particle(Particle::new(
+                    Vec2::new(self.mouse_position.x, self.mouse_position.y),
+                    Vec2::new(0.0, 0.0),
+                    DEFAULT_GRAVITY_MASS,
+                    DEFAULT_GRAVITY_RADIUS,
+                ),
                 );
             }
             KeyCode::R => {
                 self.simulator = PSim::new();
             }
             KeyCode::D => {
+                let ids_to_remove: Vec<u64> = self.simulator.particles.iter()
+                    .filter(|(&id, particle)| {
+                        particle.get_pos().distance(self.mouse_position) as f64 <= particle.get_radius()
+                    })
+                    .map(|(&id, _)| id)
+                    .collect();
+
+                for id in ids_to_remove {
+                    self.simulator.particles.remove(&id);
+                }
+
                 self.simulator.force_fields.retain(|force_field| {
                     let force_field_pos: &Vec2 = force_field.get_pos();
                     match force_field.get_shape() {
@@ -202,11 +224,11 @@ impl EventHandler for Visualizer {
     }
 
     fn mouse_button_down_event(&mut self, _ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) -> GameResult {
-        match button{
+        match button {
             MouseButton::Left => {
-                self.simulator.particles.iter().find(|(_,particle)| {
+                self.simulator.particles.iter().find(|(_, particle)| {
                     (particle.get_pos().distance(self.mouse_position) as f64) < particle.get_radius()
-                }).map(|(id,_)| {
+                }).map(|(id, _)| {
                     self.settings.set_active_particle_id(*id);
                 });
             }
@@ -222,6 +244,13 @@ impl EventHandler for Visualizer {
         } else {
             dt = self.settings.get_dt();
         }
+        self.simulator.add_forces();
+
+        let active_particle_id = self.settings.get_active_particle_id();
+        self.simulator.particles.get(&active_particle_id).map(|active_particle| {
+            self.settings.set_active_particle_data(active_particle.clone());
+        });
+
         self.simulator.step(dt);
         Ok(())
     }
